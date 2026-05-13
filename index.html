@@ -1,30 +1,140 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Click to Care</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Mitr:wght@300;400;500&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Mitr', sans-serif; background: linear-gradient(135deg, #e0f2fe 0%, #f0fdf4 100%); min-height: 100vh; }
-        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0891b2" />
+  <title>Click to Care - คลินิกวัยรุ่น รพ.นิคมคำสร้อย</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="p-4 flex flex-col items-center justify-center">
-    <div class="max-w-md w-full glass rounded-3xl p-8 shadow-xl text-center">
-        <h1 class="text-3xl font-bold text-blue-600 mb-2">Click to Care</h1>
-        <p class="text-gray-600 mb-6">ระบบจองคิวออนไลน์คลินิกวัยรุ่น<br>รพ.นิคมคำสร้อย</p>
-        
-        <div class="space-y-4">
-            <a href="booking.html" class="block w-full py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl font-medium shadow-lg transition-all transform hover:scale-105">
-                🗓️ จองคิวรับบริการ
-            </a>
-            <a href="my-booking.html" class="block w-full py-4 bg-mint-500 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-medium shadow-lg transition-all transform hover:scale-105">
-                🔍 ตรวจสอบ/ยกเลิกคิว
-            </a>
-        </div>
-        <p class="mt-8 text-xs text-gray-400">“จองง่าย ปรึกษาไว ใส่ใจทุกความลับของวัยรุ่น”</p>
+<body class="bg-gradient-to-br from-teal-50 to-cyan-50 min-h-screen">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="hidden">
+    <div class="spinner"></div>
+    <p id="loadingMessage" class="text-cyan-600 font-medium text-sm">กำลังโหลด...</p>
+  </div>
+
+  <!-- Hero Header -->
+  <div class="hero-gradient px-4 pt-10 pb-16 text-center relative">
+    <!-- Logo / Icon -->
+    <div class="flex justify-center mb-4">
+      <div class="w-20 h-20 bg-white bg-opacity-20 rounded-3xl flex items-center justify-center shadow-lg backdrop-blur-sm">
+        <span class="text-4xl">💊</span>
+      </div>
     </div>
+
+    <!-- ชื่อระบบ -->
+    <h1 class="text-white text-3xl font-bold tracking-tight mb-1">Click to Care</h1>
+    <p class="text-cyan-100 text-sm font-medium mb-1">ระบบจองคิวออนไลน์คลินิกวัยรุ่น</p>
+    <p class="text-cyan-200 text-xs">โรงพยาบาลนิคมคำสร้อย</p>
+
+    <!-- Tagline -->
+    <div class="mt-4 inline-block bg-white bg-opacity-15 backdrop-blur-sm rounded-full px-4 py-2">
+      <p class="text-white text-xs font-medium">💚 จองง่าย ปรึกษาไว ใส่ใจทุกความลับของวัยรุ่น</p>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="px-4 pb-10 -mt-6 max-w-lg mx-auto">
+
+    <!-- Card หลัก -->
+    <div class="card p-6 mb-4 fade-in">
+
+      <!-- ข้อความต้อนรับ -->
+      <div class="text-center mb-6">
+        <p class="text-gray-600 text-sm leading-relaxed">
+          บริการจองคิวออนไลน์สำหรับคลินิกวัยรุ่น<br/>
+          <span class="text-cyan-600 font-medium">เปิดบริการทุกวันอังคาร</span> 09.00 - 15.00 น.
+        </p>
+      </div>
+
+      <!-- ปุ่มจองคิว -->
+      <a href="booking.html" class="btn-primary mb-3 block text-decoration-none" style="text-decoration: none;">
+        📅 จองคิวรับบริการ
+      </a>
+
+      <!-- ปุ่มตรวจสอบคิว -->
+      <a href="my-booking.html" class="btn-outline block" style="text-decoration: none; display: block;">
+        🔍 ตรวจสอบ / ยกเลิกคิวของฉัน
+      </a>
+    </div>
+
+    <!-- บริการที่เปิดให้จอง -->
+    <div class="card p-5 mb-4 fade-in" style="animation-delay: 0.1s;">
+      <h2 class="font-semibold text-gray-700 text-sm mb-3 flex items-center gap-2">
+        <span class="w-1 h-5 bg-gradient-to-b from-cyan-500 to-teal-500 rounded-full inline-block"></span>
+        บริการที่เปิดให้จอง
+      </h2>
+      <div class="space-y-2">
+        <div class="flex items-center gap-3 text-sm text-gray-600 py-2 border-b border-gray-100">
+          <span class="text-xl">💉</span>
+          <span>รับบริการฝังยาคุมกำเนิด</span>
+        </div>
+        <div class="flex items-center gap-3 text-sm text-gray-600 py-2 border-b border-gray-100">
+          <span class="text-xl">🩺</span>
+          <span>รับบริการถอดยาฝังคุมกำเนิด</span>
+        </div>
+        <div class="flex items-center gap-3 text-sm text-gray-600 py-2 border-b border-gray-100">
+          <span class="text-xl">🔄</span>
+          <span>รับบริการถอดและฝังยาคุมกำเนิด</span>
+        </div>
+        <div class="flex items-center gap-3 text-sm text-gray-600 py-2 border-b border-gray-100">
+          <span class="text-xl">🩹</span>
+          <span>รับบริการล้างแผลหลังถอดหรือฝังยา</span>
+        </div>
+        <div class="flex items-center gap-3 text-sm text-gray-600 py-2">
+          <span class="text-xl">💬</span>
+          <span>รับคำปรึกษาการคุมกำเนิด</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ข้อมูลการให้บริการ -->
+    <div class="card p-5 mb-4 fade-in" style="animation-delay: 0.15s;">
+      <h2 class="font-semibold text-gray-700 text-sm mb-3 flex items-center gap-2">
+        <span class="w-1 h-5 bg-gradient-to-b from-cyan-500 to-teal-500 rounded-full inline-block"></span>
+        วันและเวลาบริการ
+      </h2>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-cyan-50 rounded-xl p-3 text-center">
+          <p class="text-xs text-cyan-400 mb-1">วันบริการ</p>
+          <p class="text-cyan-700 font-bold text-sm">ทุกวันอังคาร</p>
+        </div>
+        <div class="bg-teal-50 rounded-xl p-3 text-center">
+          <p class="text-xs text-teal-400 mb-1">เวลาบริการ</p>
+          <p class="text-teal-700 font-bold text-sm">09.00 - 15.00</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Privacy Notice -->
+    <div class="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4 fade-in" style="animation-delay: 0.2s;">
+      <div class="flex gap-3">
+        <span class="text-xl flex-shrink-0">🔒</span>
+        <div>
+          <p class="text-green-700 font-semibold text-sm mb-1">ข้อมูลของคุณปลอดภัย</p>
+          <p class="text-green-600 text-xs leading-relaxed">
+            ข้อมูลส่วนตัวของคุณจะถูกเก็บเป็นความลับ ใช้เฉพาะเพื่อการนัดหมายเท่านั้น ไม่มีการเปิดเผยต่อบุคคลอื่น
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Link Admin (ซ่อนจาก user ทั่วไป) -->
+    <div class="text-center mt-4">
+      <a href="admin.html" class="text-xs text-gray-300 hover:text-gray-400 transition-colors">
+        เจ้าหน้าที่เข้าสู่ระบบ
+      </a>
+    </div>
+
+  </div><!-- /main content -->
+
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
 </body>
 </html>
