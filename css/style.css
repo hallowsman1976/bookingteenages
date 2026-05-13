@@ -1,0 +1,134 @@
+/* Click to Care : Teen Clinic Online Booking Style
+  Theme: Blue, White, Mint Green (Modern & Clean)
+*/
+
+:root {
+    --primary: #2563eb; /* Blue 600 */
+    --primary-hover: #1d4ed8;
+    --secondary: #10b981; /* Emerald 500 (Mint) */
+    --background: #f0f9ff;
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.4);
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+}
+
+/* Base Settings */
+body {
+    font-family: 'Mitr', sans-serif;
+    background: linear-gradient(135deg, #e0f2fe 0%, #f0fdf4 100%);
+    color: var(--text-main);
+    min-height: 100vh;
+    margin: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Glassmorphism Effect */
+.glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+/* Card & Container Style */
+.booking-card {
+    background: white;
+    border-radius: 1.5rem;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.booking-card:active {
+    transform: scale(0.98);
+}
+
+.booking-card.selected {
+    border-color: var(--primary);
+    background-color: #eff6ff;
+}
+
+/* Form Inputs */
+input[type="text"],
+input[type="number"],
+input[type="tel"],
+select,
+textarea {
+    @apply w-full p-4 rounded-2xl border-none shadow-sm transition-all;
+    background: white;
+    font-size: 16px; /* ป้องกัน iOS Zoom เมื่อ Focus */
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+/* Button Customization */
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    @apply py-4 px-6 rounded-2xl font-bold shadow-lg transition-all active:scale-95;
+}
+
+.btn-mint {
+    background: var(--secondary);
+    color: white;
+    @apply py-4 px-6 rounded-2xl font-bold shadow-lg transition-all active:scale-95;
+}
+
+/* Loading Overlay */
+#loading-overlay {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(4px);
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Custom Scrollbar for Desktop */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+section {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 640px) {
+    .text-title {
+        font-size: 1.5rem;
+    }
+    
+    .p-main {
+        padding: 1.25rem;
+    }
+}
+
+/* Status Colors ในหน้า Admin */
+.status-pending { color: #f59e0b; background: #fef3c7; }
+.status-completed { color: #10b981; background: #d1fae5; }
+.status-cancelled { color: #ef4444; background: #fee2e2; }
+.status-no_show { color: #6b7280; background: #f3f4f6; }
+
+.badge {
+    @apply px-3 py-1 rounded-full text-xs font-medium inline-block;
+}
