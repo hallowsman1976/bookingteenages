@@ -54,14 +54,22 @@
       </div>
 
       <!-- ปุ่มจองคิว -->
-      <a href="booking.html" class="btn-primary mb-3 block text-decoration-none" style="text-decoration: none;">
+      <button
+        onclick="window.location.href='booking.html'"
+        class="btn-primary mb-3"
+        type="button"
+      >
         📅 จองคิวรับบริการ
-      </a>
+      </button>
 
       <!-- ปุ่มตรวจสอบคิว -->
-      <a href="my-booking.html" class="btn-outline block" style="text-decoration: none; display: block;">
+      <button
+        onclick="window.location.href='my-booking.html'"
+        class="btn-outline"
+        type="button"
+      >
         🔍 ตรวจสอบ / ยกเลิกคิวของฉัน
-      </a>
+      </button>
     </div>
 
     <!-- บริการที่เปิดให้จอง -->
@@ -127,9 +135,9 @@
 
     <!-- Link Admin (ซ่อนจาก user ทั่วไป) -->
     <div class="text-center mt-4">
-      <a href="admin.html" class="text-xs text-gray-300 hover:text-gray-400 transition-colors">
+      <button onclick="window.location.href='admin.html'" class="text-xs text-gray-300 hover:text-gray-400 transition-colors bg-transparent border-none cursor-pointer">
         เจ้าหน้าที่เข้าสู่ระบบ
-      </a>
+      </button>
     </div>
 
   </div><!-- /main content -->
