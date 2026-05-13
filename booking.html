@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>จองคิว - Click to Care</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Mitr:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-blue-50 p-4 pb-10">
+    <div id="loading-overlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500"></div>
+    </div>
+
+    <div class="max-w-md mx-auto">
+        <header class="mb-6">
+            <h1 class="text-2xl font-bold text-blue-700">นัดหมายบริการ</h1>
+            <p class="text-gray-500">กรุณาเลือกบริการและวันเวลาที่สะดวก</p>
+        </header>
+
+        <section id="step-1" class="space-y-3 mb-8">
+            <h2 class="text-lg font-semibold text-gray-700">1. เลือกประเภทบริการ</h2>
+            <div class="grid grid-cols-1 gap-3" id="service-options">
+                </div>
+        </section>
+
+        <section id="step-2" class="space-y-4 mb-8 hidden">
+            <h2 class="text-lg font-semibold text-gray-700">2. เลือกวันและเวลา (เฉพาะวันอังคาร)</h2>
+            <select id="booking-date" class="w-full p-4 rounded-2xl border-none shadow-sm focus:ring-2 focus:ring-blue-400">
+                <option value="">เลือกวันอังคารที่ต้องการ...</option>
+            </select>
+            <div id="time-slots-container" class="grid grid-cols-2 gap-2 mt-4">
+                </div>
+        </section>
+
+        <section id="step-3" class="space-y-4 mb-8 hidden">
+            <h2 class="text-lg font-semibold text-gray-700">3. ข้อมูลส่วนตัว</h2>
+            <input type="text" id="full_name" placeholder="ชื่อ-นามสกุล" class="w-full p-4 rounded-2xl border-none shadow-sm">
+            <input type="number" id="age" placeholder="อายุ (ปี)" class="w-full p-4 rounded-2xl border-none shadow-sm">
+            <input type="tel" id="phone" placeholder="เบอร์ติดต่อ" class="w-full p-4 rounded-2xl border-none shadow-sm">
+            <textarea id="address" placeholder="ที่อยู่" class="w-full p-4 rounded-2xl border-none shadow-sm" rows="3"></textarea>
+            
+            <label class="flex items-start space-x-3 text-sm text-gray-600 p-2">
+                <input type="checkbox" id="consent" class="mt-1 h-4 w-4 text-blue-600">
+                <span>ข้าพเจ้ายินยอมให้คลินิกวัยรุ่น โรงพยาบาลนิคมคำสร้อย ใช้ข้อมูลเพื่อการนัดหมายและติดต่อกลับเท่านั้น</span>
+            </label>
+            
+            <button id="btn-submit" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg mt-4">
+                ยืนยันการจองคิว
+            </button>
+        </section>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/booking.js"></script>
+</body>
+</html>
