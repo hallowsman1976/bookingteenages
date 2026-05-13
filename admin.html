@@ -1,441 +1,309 @@
-// =====================================================
-// js/admin.js
-// Logic สำหรับหน้า Admin Dashboard (admin.html)
-// =====================================================
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin - Click to Care</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- bcryptjs สำหรับตรวจสอบรหัสผ่าน Admin -->
+  <script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/brypt.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-[Mitr]">
 
-let allBookings = [];
-let filteredBookings = [];
-let adminUser = null;
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="hidden">
+    <div class="spinner"></div>
+    <p id="loadingMessage" class="text-cyan-600 font-medium text-sm">กำลังโหลด...</p>
+  </div>
 
-// =====================================================
-// เริ่มต้นหน้า Admin
-// =====================================================
-function initAdminPage() {
-  // ตรวจสอบ session
-  adminUser = getAdminSession();
-
-  if (!adminUser) {
-    showLoginSection();
-    return;
-  }
-
-  showDashboardSection();
-  loadDashboardData();
-}
-
-// =====================================================
-// แสดงส่วน Login
-// =====================================================
-function showLoginSection() {
-  document.getElementById("loginSection")?.classList.remove("hidden");
-  document.getElementById("dashboardSection")?.classList.add("hidden");
-}
-
-// =====================================================
-// แสดงส่วน Dashboard
-// =====================================================
-function showDashboardSection() {
-  document.getElementById("loginSection")?.classList.add("hidden");
-  document.getElementById("dashboardSection")?.classList.remove("hidden");
-
-  // แสดงชื่อ admin
-  const adminNameEl = document.getElementById("adminName");
-  if (adminNameEl && adminUser) {
-    adminNameEl.textContent = adminUser.full_name || adminUser.username;
-  }
-}
-
-// =====================================================
-// Login Admin
-// =====================================================
-async function handleAdminLogin(e) {
-  e.preventDefault();
-
-  const username = document.getElementById("loginUsername")?.value.trim();
-  const password = document.getElementById("loginPassword")?.value;
-
-  if (!username || !password) {
-    showWarning("กรุณากรอกข้อมูล", "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน");
-    return;
-  }
-
-  showLoading("กำลังเข้าสู่ระบบ...");
-
-  const result = await adminLogin(username, password);
-
-  hideLoading();
-
-  if (!result.success) {
-    showError("เข้าสู่ระบบไม่สำเร็จ", result.message);
-    return;
-  }
-
-  adminUser = result.admin;
-  showDashboardSection();
-  await loadDashboardData();
-}
-
-// =====================================================
-// Logout
-// =====================================================
-function handleLogout() {
-  Swal.fire({
-    title: "ออกจากระบบ",
-    text: "คุณต้องการออกจากระบบหรือไม่?",
-    icon: "question",
-    showCancelButton: true,
-    confirmButtonText: "ออกจากระบบ",
-    cancelButtonText: "ยกเลิก",
-    confirmButtonColor: "#ef4444",
-    cancelButtonColor: "#6b7280",
-  }).then((result) => {
-    if (result.isConfirmed) {
-      clearAdminSession();
-      showLoginSection();
-    }
-  });
-}
-
-// =====================================================
-// โหลดข้อมูล Dashboard
-// =====================================================
-async function loadDashboardData() {
-  showLoading("กำลังโหลดข้อมูล...");
-
-  const filters = getActiveFilters();
-  const result = await getAllBookings(filters);
-
-  hideLoading();
-
-  if (!result.success) {
-    showError("เกิดข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้");
-    return;
-  }
-
-  allBookings = result.data || [];
-  filteredBookings = [...allBookings];
-
-  // กรองด้วย search keyword
-  applySearchFilter();
-  updateSummaryCards();
-  renderBookingsTable();
-}
-
-// =====================================================
-// ดึงค่า filter ปัจจุบัน
-// =====================================================
-function getActiveFilters() {
-  return {
-    status: document.getElementById("filterStatus")?.value || "all",
-    date: document.getElementById("filterDate")?.value || "",
-    service: document.getElementById("filterService")?.value || "all",
-  };
-}
-
-// =====================================================
-// กรองด้วย Search Keyword
-// =====================================================
-function applySearchFilter() {
-  const keyword = document.getElementById("searchInput")?.value.trim().toLowerCase() || "";
-
-  if (!keyword) {
-    filteredBookings = [...allBookings];
-  } else {
-    filteredBookings = allBookings.filter((b) =>
-      (b.full_name || "").toLowerCase().includes(keyword) ||
-      (b.phone || "").includes(keyword) ||
-      (b.service_type || "").toLowerCase().includes(keyword) ||
-      (b.address || "").toLowerCase().includes(keyword)
-    );
-  }
-
-  renderBookingsTable();
-  updateSummaryCards();
-}
-
-// =====================================================
-// อัปเดต Summary Cards
-// =====================================================
-function updateSummaryCards() {
-  const today = getTodayISO();
-
-  const todayCount = allBookings.filter((b) => b.booking_date === today && b.status === "pending").length;
-  const totalCount = allBookings.length;
-  const pendingCount = allBookings.filter((b) => b.status === "pending").length;
-  const cancelledCount = allBookings.filter((b) => b.status === "cancelled").length;
-  const completedCount = allBookings.filter((b) => b.status === "completed").length;
-
-  const el = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val;
-  };
-
-  el("countToday", todayCount);
-  el("countTotal", totalCount);
-  el("countPending", pendingCount);
-  el("countCancelled", cancelledCount);
-  el("countCompleted", completedCount);
-  el("countFiltered", filteredBookings.length);
-}
-
-// =====================================================
-// Render ตารางรายการจอง
-// =====================================================
-function renderBookingsTable() {
-  const tbody = document.getElementById("bookingsTableBody");
-  const emptyState = document.getElementById("tableEmptyState");
-
-  if (!tbody) return;
-
-  tbody.innerHTML = "";
-
-  if (filteredBookings.length === 0) {
-    if (emptyState) emptyState.classList.remove("hidden");
-    return;
-  }
-
-  if (emptyState) emptyState.classList.add("hidden");
-
-  filteredBookings.forEach((booking, index) => {
-    const row = createTableRow(booking, index + 1);
-    tbody.appendChild(row);
-  });
-}
-
-// =====================================================
-// สร้างแถวตาราง
-// =====================================================
-function createTableRow(booking, no) {
-  const tr = document.createElement("tr");
-  tr.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
-
-  const statusInfo = STATUS_LABELS[booking.status] || STATUS_LABELS["pending"];
-  const dateLabel = formatThaiDateShort(booking.booking_date);
-
-  tr.innerHTML = `
-    <td class="px-3 py-3 text-center text-sm text-gray-500">${no}</td>
-    <td class="px-3 py-3">
-      <div class="font-medium text-gray-800 text-sm">${booking.full_name}</div>
-      <div class="text-xs text-gray-400">${booking.line_display_name || "-"}</div>
-    </td>
-    <td class="px-3 py-3 text-sm text-gray-600 hidden md:table-cell">${booking.phone}</td>
-    <td class="px-3 py-3 hidden lg:table-cell">
-      <div class="text-sm text-gray-700">${booking.service_type}</div>
-    </td>
-    <td class="px-3 py-3">
-      <div class="text-sm font-medium text-gray-700">${dateLabel}</div>
-      <div class="text-xs text-gray-500">${booking.booking_time} น.</div>
-    </td>
-    <td class="px-3 py-3">
-      <span class="px-2 py-1 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.color}">
-        ${statusInfo.label}
-      </span>
-    </td>
-    <td class="px-3 py-3">
-      <div class="flex gap-1 flex-wrap">
-        <button
-          onclick="showBookingDetail('${booking.id}')"
-          class="px-2 py-1 rounded-lg bg-blue-50 text-blue-600 text-xs font-medium hover:bg-blue-100 transition"
-        >
-          ดู
-        </button>
-        ${
-          booking.status === "pending"
-            ? `
-          <button
-            onclick="changeStatus('${booking.id}', 'completed')"
-            class="px-2 py-1 rounded-lg bg-green-50 text-green-600 text-xs font-medium hover:bg-green-100 transition"
-          >
-            มาแล้ว
-          </button>
-          <button
-            onclick="changeStatus('${booking.id}', 'no_show')"
-            class="px-2 py-1 rounded-lg bg-gray-50 text-gray-600 text-xs font-medium hover:bg-gray-100 transition"
-          >
-            ไม่มา
-          </button>
-          <button
-            onclick="changeStatus('${booking.id}', 'cancelled')"
-            class="px-2 py-1 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100 transition"
-          >
-            ยกเลิก
-          </button>
-        `
-            : ""
-        }
+  <!-- ===== LOGIN SECTION ===== -->
+  <div id="loginSection" class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-sm">
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <div class="w-16 h-16 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <span class="text-3xl">🏥</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-800">Click to Care</h1>
+        <p class="text-gray-500 text-sm mt-1">ระบบจัดการคลินิกวัยรุ่น</p>
       </div>
-    </td>
-  `;
 
-  return tr;
-}
-
-// =====================================================
-// แสดงรายละเอียดการจอง
-// =====================================================
-function showBookingDetail(bookingId) {
-  const booking = allBookings.find((b) => b.id === bookingId);
-  if (!booking) return;
-
-  const statusInfo = STATUS_LABELS[booking.status] || STATUS_LABELS["pending"];
-
-  Swal.fire({
-    title: "รายละเอียดการจอง",
-    html: `
-      <div class="text-left text-sm space-y-3">
-        <div class="grid grid-cols-2 gap-2">
-          <div class="bg-gray-50 rounded-lg p-2">
-            <p class="text-xs text-gray-400">ชื่อ-สกุล</p>
-            <p class="font-semibold">${booking.full_name}</p>
+      <!-- Login Form -->
+      <div class="card p-6">
+        <h2 class="font-semibold text-gray-700 mb-5 text-center">เข้าสู่ระบบเจ้าหน้าที่</h2>
+        <form id="loginForm" class="space-y-4">
+          <div>
+            <label class="form-label" for="loginUsername">ชื่อผู้ใช้</label>
+            <input
+              type="text"
+              id="loginUsername"
+              class="form-input"
+              placeholder="username"
+              autocomplete="username"
+              required
+            />
           </div>
-          <div class="bg-gray-50 rounded-lg p-2">
-            <p class="text-xs text-gray-400">อายุ</p>
-            <p class="font-semibold">${booking.age} ปี</p>
+          <div>
+            <label class="form-label" for="loginPassword">รหัสผ่าน</label>
+            <div class="relative">
+              <input
+                type="password"
+                id="loginPassword"
+                class="form-input pr-12"
+                placeholder="••••••••"
+                autocomplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                onclick="togglePasswordVisibility()"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <svg id="eyeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+              </button>
+            </div>
           </div>
-          <div class="bg-gray-50 rounded-lg p-2">
-            <p class="text-xs text-gray-400">เบอร์ติดต่อ</p>
-            <p class="font-semibold">${booking.phone}</p>
+          <button type="submit" class="btn-primary mt-2">
+            🔐 เข้าสู่ระบบ
+          </button>
+        </form>
+      </div>
+
+      <p class="text-center text-xs text-gray-400 mt-4">
+        <button onclick="window.location.href='index.html'" class="hover:text-cyan-500 text-gray-400 text-xs">← กลับหน้าหลัก</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== DASHBOARD SECTION ===== -->
+  <div id="dashboardSection" class="hidden">
+
+    <!-- Sidebar (Desktop) -->
+    <aside class="admin-sidebar hidden lg:flex flex-col">
+      <div class="p-5 border-b border-white border-opacity-10">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+            <span class="text-xl">🏥</span>
           </div>
-          <div class="bg-gray-50 rounded-lg p-2">
-            <p class="text-xs text-gray-400">LINE</p>
-            <p class="font-semibold text-xs">${booking.line_display_name || "-"}</p>
+          <div>
+            <p class="text-white font-bold text-sm">Click to Care</p>
+            <p class="text-cyan-200 text-xs">Admin Panel</p>
           </div>
         </div>
-        <div class="bg-gray-50 rounded-lg p-2">
-          <p class="text-xs text-gray-400">ที่อยู่</p>
-          <p class="font-semibold">${booking.address}</p>
+      </div>
+
+      <nav class="flex-1 p-4 space-y-1">
+        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white bg-opacity-15 text-white text-sm font-medium">
+          <span>📊</span> Dashboard
+        </a>
+        <button onclick="window.location.href='index.html'" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-cyan-100 text-sm hover:bg-white hover:bg-opacity-10 transition w-full text-left">
+          <span>🏠</span> หน้าหลัก
+        </button>
+      </nav>
+
+      <div class="p-4 border-t border-white border-opacity-10">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+            <span class="text-sm">👤</span>
+          </div>
+          <div>
+            <p class="text-white text-xs font-medium" id="adminName">Admin</p>
+            <p class="text-cyan-200 text-xs">เจ้าหน้าที่</p>
+          </div>
         </div>
-        <div class="bg-cyan-50 rounded-lg p-2 space-y-1">
-          <p class="text-xs text-cyan-400">ข้อมูลนัดหมาย</p>
-          <p><span class="text-gray-500">บริการ:</span> <strong>${booking.service_type}</strong></p>
-          <p><span class="text-gray-500">วันที่:</span> <strong>${formatThaiDate(booking.booking_date)}</strong></p>
-          <p><span class="text-gray-500">เวลา:</span> <strong>${booking.booking_time} น.</strong></p>
-        </div>
+        <button id="btnLogout" class="w-full text-center text-xs text-cyan-200 hover:text-white py-2 transition">
+          ออกจากระบบ
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-content">
+
+      <!-- Mobile Header -->
+      <div class="lg:hidden flex items-center justify-between mb-4 bg-white rounded-2xl p-3 shadow-sm">
         <div class="flex items-center gap-2">
-          <p class="text-gray-500">สถานะ:</p>
-          <span class="px-2 py-1 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.color}">
-            ${statusInfo.label}
+          <span class="text-2xl">🏥</span>
+          <div>
+            <p class="font-bold text-gray-800 text-sm">Click to Care Admin</p>
+            <p class="text-xs text-gray-400" id="adminNameMobile">Admin</p>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button id="btnRefreshData" class="w-9 h-9 bg-cyan-50 rounded-xl flex items-center justify-center text-cyan-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+          </button>
+          <button id="btnLogoutMobile" class="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center text-red-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
+        <div class="card p-4 text-center">
+          <p class="text-xs text-gray-400 mb-1">คิววันนี้</p>
+          <p class="text-2xl font-bold text-cyan-600" id="countToday">-</p>
+          <p class="text-xs text-cyan-400">รายการ</p>
+        </div>
+        <div class="card p-4 text-center">
+          <p class="text-xs text-gray-400 mb-1">ทั้งหมด</p>
+          <p class="text-2xl font-bold text-gray-700" id="countTotal">-</p>
+          <p class="text-xs text-gray-400">รายการ</p>
+        </div>
+        <div class="card p-4 text-center">
+          <p class="text-xs text-gray-400 mb-1">รอรับบริการ</p>
+          <p class="text-2xl font-bold text-yellow-500" id="countPending">-</p>
+          <p class="text-xs text-yellow-400">รายการ</p>
+        </div>
+        <div class="card p-4 text-center">
+          <p class="text-xs text-gray-400 mb-1">รับบริการแล้ว</p>
+          <p class="text-2xl font-bold text-green-500" id="countCompleted">-</p>
+          <p class="text-xs text-green-400">รายการ</p>
+        </div>
+        <div class="card p-4 text-center col-span-2 lg:col-span-1">
+          <p class="text-xs text-gray-400 mb-1">ยกเลิก</p>
+          <p class="text-2xl font-bold text-red-400" id="countCancelled">-</p>
+          <p class="text-xs text-red-300">รายการ</p>
+        </div>
+      </div>
+
+      <!-- Filters & Search -->
+      <div class="card p-4 mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- Search -->
+          <div class="sm:col-span-2 lg:col-span-1 relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input
+              type="text"
+              id="searchInput"
+              class="form-input pl-9 text-sm"
+              placeholder="ค้นหาชื่อ เบอร์ หรือบริการ..."
+            />
+          </div>
+
+          <!-- Filter วันที่ -->
+          <div>
+            <input
+              type="date"
+              id="filterDate"
+              class="form-input text-sm"
+            />
+          </div>
+
+          <!-- Filter สถานะ -->
+          <div>
+            <select id="filterStatus" class="form-input text-sm">
+              <option value="all">ทุกสถานะ</option>
+              <option value="pending">รอรับบริการ</option>
+              <option value="completed">รับบริการแล้ว</option>
+              <option value="cancelled">ยกเลิก</option>
+              <option value="no_show">ไม่มาตามนัด</option>
+            </select>
+          </div>
+
+          <!-- Filter บริการ -->
+          <div>
+            <select id="filterService" class="form-input text-sm">
+              <option value="all">ทุกประเภทบริการ</option>
+              <!-- สร้างโดย JS -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-2 mt-3 flex-wrap">
+          <button
+            id="btnRefreshData"
+            class="flex items-center gap-1.5 px-3 py-2 bg-cyan-50 text-cyan-700 rounded-xl text-xs font-medium hover:bg-cyan-100 transition"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            รีเฟรช
+          </button>
+          <button
+            id="btnExportCSV"
+            class="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-xl text-xs font-medium hover:bg-green-100 transition"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Export CSV
+          </button>
+          <span class="ml-auto text-xs text-gray-400 self-center">
+            พบ <strong id="countFiltered" class="text-gray-600">-</strong> รายการ
           </span>
         </div>
-        ${
-          booking.cancel_reason
-            ? `
-          <div class="bg-red-50 rounded-lg p-2">
-            <p class="text-xs text-red-400">เหตุผลยกเลิก</p>
-            <p class="text-red-600">${booking.cancel_reason}</p>
-          </div>
-        `
-            : ""
-        }
-        <p class="text-xs text-gray-400 text-right">จองเมื่อ ${formatThaiDateTime(booking.created_at)}</p>
       </div>
-    `,
-    confirmButtonText: "ปิด",
-    confirmButtonColor: "#06b6d4",
-    width: "90%",
-    customClass: { popup: "rounded-2xl" },
-  });
-}
 
-// =====================================================
-// เปลี่ยนสถานะการจอง
-// =====================================================
-async function changeStatus(bookingId, newStatus) {
-  const statusInfo = STATUS_LABELS[newStatus];
-  const booking = allBookings.find((b) => b.id === bookingId);
-  if (!booking) return;
+      <!-- Bookings Table -->
+      <div class="card overflow-hidden">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th class="w-10 text-center">#</th>
+                <th>ชื่อ-สกุล</th>
+                <th class="hidden md:table-cell">เบอร์</th>
+                <th class="hidden lg:table-cell">บริการ</th>
+                <th>วันที่ / เวลา</th>
+                <th>สถานะ</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="bookingsTableBody">
+              <!-- สร้างโดย JS -->
+            </tbody>
+          </table>
+        </div>
 
-  const result = await Swal.fire({
-    title: `เปลี่ยนสถานะเป็น "${statusInfo.label}"`,
-    text: `ยืนยันการเปลี่ยนสถานะของ ${booking.full_name}?`,
-    icon: "question",
-    showCancelButton: true,
-    confirmButtonText: "ยืนยัน",
-    cancelButtonText: "ยกเลิก",
-    confirmButtonColor: "#06b6d4",
-    cancelButtonColor: "#6b7280",
-  });
+        <!-- Empty State -->
+        <div id="tableEmptyState" class="hidden p-12 text-center">
+          <div class="text-5xl mb-3">📭</div>
+          <p class="text-gray-500 font-medium">ไม่พบรายการที่ตรงกับเงื่อนไข</p>
+          <p class="text-gray-400 text-sm mt-1">ลองเปลี่ยนตัวกรองหรือคำค้นหา</p>
+        </div>
+      </div>
 
-  if (!result.isConfirmed) return;
+    </main><!-- /main -->
+  </div><!-- /dashboardSection -->
 
-  showLoading("กำลังอัปเดต...");
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script>
+    // แสดง/ซ่อนรหัสผ่าน
+    function togglePasswordVisibility() {
+      const input = document.getElementById('loginPassword');
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
 
-  const updateResult = await updateBookingStatus(bookingId, newStatus);
-
-  hideLoading();
-
-  if (!updateResult.success) {
-    showError("เกิดข้อผิดพลาด", "ไม่สามารถอัปเดตสถานะได้");
-    return;
-  }
-
-  // อัปเดต local data
-  const idx = allBookings.findIndex((b) => b.id === bookingId);
-  if (idx !== -1) allBookings[idx].status = newStatus;
-
-  applySearchFilter();
-  updateSummaryCards();
-
-  Swal.fire({
-    icon: "success",
-    title: "อัปเดตสำเร็จ",
-    timer: 1500,
-    showConfirmButton: false,
-  });
-}
-
-// =====================================================
-// Export CSV
-// =====================================================
-function handleExportCSV() {
-  const data = filteredBookings.length > 0 ? filteredBookings : allBookings;
-  const today = getTodayISO();
-  exportToCSV(data, `bookings_${today}.csv`);
-}
-
-// =====================================================
-// Populate Service Filter Dropdown
-// =====================================================
-function populateServiceFilter() {
-  const select = document.getElementById("filterService");
-  if (!select) return;
-
-  SERVICES.forEach((service) => {
-    const opt = document.createElement("option");
-    opt.value = service.name;
-    opt.textContent = service.name;
-    select.appendChild(opt);
-  });
-}
-
-// =====================================================
-// เริ่มต้นเมื่อ DOM พร้อม
-// =====================================================
-document.addEventListener("DOMContentLoaded", () => {
-  initAdminPage();
-  populateServiceFilter();
-
-  // Form Login
-  document.getElementById("loginForm")?.addEventListener("submit", handleAdminLogin);
-
-  // ปุ่ม Logout
-  document.getElementById("btnLogout")?.addEventListener("click", handleLogout);
-  document.getElementById("btnLogoutMobile")?.addEventListener("click", handleLogout);
-
-  // ปุ่ม Export CSV
-  document.getElementById("btnExportCSV")?.addEventListener("click", handleExportCSV);
-
-  // ปุ่ม Refresh
-  document.getElementById("btnRefreshData")?.addEventListener("click", loadDashboardData);
-
-  // Search input (debounce)
-  const searchInput = document.getElementById("searchInput");
-  if (searchInput) {
-    searchInput.addEventListener("input", debounce(applySearchFilter, 300));
-  }
-
-  // Filters
-  ["filterStatus", "filterDate", "filterService"].forEach((id) => {
-    document.getElementById(id)?.addEventListener("change", loadDashboardData);
-  });
-});
+    // Sync adminName Mobile
+    const origShowDashboard = window.showDashboardSection;
+    document.addEventListener('DOMContentLoaded', () => {
+      const mobileNameEl = document.getElementById('adminNameMobile');
+      const desktopNameEl = document.getElementById('adminName');
+      const observer = new MutationObserver(() => {
+        if (mobileNameEl && desktopNameEl) {
+          mobileNameEl.textContent = desktopNameEl.textContent;
+        }
+      });
+      if (desktopNameEl) observer.observe(desktopNameEl, { childList: true });
+    });
+  </script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
