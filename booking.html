@@ -3,456 +3,261 @@
 // Logic สำหรับหน้าจองคิว (booking.html)
 // =====================================================
 
-// สถานะการจองปัจจุบัน
-let bookingState = {
-  lineUserId: null,
-  lineDisplayName: null,
-  selectedService: null,
-  selectedDate: null,
-  selectedTime: null,
-};
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0891b2" />
+  <title>จองคิว - Click to Care</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 min-h-screen pb-32">
 
-// =====================================================
-// เริ่มต้นหน้า Booking
-// =====================================================
-async function initBookingPage() {
-  showLoading("กำลังเตรียมระบบ...");
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="hidden">
+    <div class="spinner"></div>
+    <p id="loadingMessage" class="text-cyan-600 font-medium text-sm">กำลังโหลด...</p>
+  </div>
 
-  // เริ่มต้น LIFF
-  const user = await initLiff();
-  if (!user) {
-    hideLoading();
-    return;
-  }
-
-  bookingState.lineUserId = user.userId;
-  bookingState.lineDisplayName = user.displayName;
-
-  // แสดงชื่อผู้ใช้
-  const userNameEl = document.getElementById("userName");
-  if (userNameEl) userNameEl.textContent = user.displayName;
-
-  // สร้างการ์ดบริการ
-  renderServiceCards();
-
-  // สร้างรายการวันอังคาร
-  renderDateOptions();
-
-  hideLoading();
-}
-
-// =====================================================
-// สร้างการ์ดบริการให้เลือก
-// =====================================================
-function renderServiceCards() {
-  const container = document.getElementById("serviceCards");
-  if (!container) return;
-
-  container.innerHTML = "";
-  SERVICES.forEach((service) => {
-    const card = document.createElement("div");
-    card.className =
-      "service-card cursor-pointer rounded-2xl border-2 border-transparent bg-white p-4 shadow-sm transition-all duration-200 hover:border-cyan-400 hover:shadow-md";
-    card.dataset.serviceId = service.id;
-    card.dataset.serviceName = service.name;
-
-    card.innerHTML = `
-      <div class="flex items-start gap-3">
-        <span class="text-3xl">${service.icon}</span>
-        <div class="flex-1">
-          <p class="font-semibold text-gray-800 text-sm leading-snug">${service.name}</p>
-          <p class="text-xs text-gray-500 mt-1">${service.description}</p>
-        </div>
-        <div class="check-icon hidden w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center flex-shrink-0">
-          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-          </svg>
-        </div>
+  <!-- Top Navigation -->
+  <div class="hero-gradient px-4 pt-6 pb-8 sticky top-0 z-50">
+    <div class="flex items-center gap-3 max-w-lg mx-auto">
+      <button
+        onclick="window.location.href='index.html'"
+        type="button"
+        class="w-9 h-9 bg-white bg-opacity-20 rounded-xl flex items-center justify-center flex-shrink-0"
+      >
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-white font-bold text-lg leading-tight">จองคิวรับบริการ</h1>
+        <p class="text-cyan-100 text-xs" id="userName">กำลังโหลด...</p>
       </div>
-    `;
-
-    card.addEventListener("click", () => selectService(service.id, service.name, card));
-    container.appendChild(card);
-  });
-}
-
-// =====================================================
-// เลือกบริการ
-// =====================================================
-function selectService(serviceId, serviceName, cardEl) {
-  // ล้างการเลือกเดิม
-  document.querySelectorAll(".service-card").forEach((c) => {
-    c.classList.remove("border-cyan-500", "bg-cyan-50", "selected");
-    c.querySelector(".check-icon")?.classList.add("hidden");
-  });
-
-  // เลือกการ์ดใหม่
-  cardEl.classList.add("border-cyan-500", "bg-cyan-50", "selected");
-  cardEl.querySelector(".check-icon")?.classList.remove("hidden");
-
-  bookingState.selectedService = serviceId;
-
-  // เลื่อนไปส่วนเลือกวันที่
-  setTimeout(() => {
-    document.getElementById("dateSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, 200);
-}
-
-// =====================================================
-// สร้างรายการวันอังคารให้เลือก
-// =====================================================
-function renderDateOptions() {
-  const container = document.getElementById("dateOptions");
-  if (!container) return;
-
-  const tuesdays = getNextTuesdays(8);
-  container.innerHTML = "";
-
-  tuesdays.forEach((tuesday) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className =
-      "date-btn w-full text-left px-4 py-3 rounded-xl border-2 border-gray-200 bg-white text-sm text-gray-700 transition-all duration-200 hover:border-cyan-400 hover:bg-cyan-50";
-    btn.dataset.date = tuesday.isoDate;
-    btn.textContent = tuesday.thaiLabel;
-
-    btn.addEventListener("click", () => selectDate(tuesday.isoDate, btn));
-    container.appendChild(btn);
-  });
-}
-
-// =====================================================
-// เลือกวันที่
-// =====================================================
-async function selectDate(dateStr, btnEl) {
-  // ล้างการเลือกเดิม
-  document.querySelectorAll(".date-btn").forEach((b) => {
-    b.classList.remove("border-cyan-500", "bg-cyan-50", "selected");
-  });
-
-  // เลือกวันใหม่
-  btnEl.classList.add("border-cyan-500", "bg-cyan-50", "selected");
-  bookingState.selectedDate = dateStr;
-  bookingState.selectedTime = null;
-
-  // โหลดช่วงเวลาว่าง
-  await loadAvailableSlots(dateStr);
-
-  // เลื่อนไปส่วนเลือกเวลา
-  setTimeout(() => {
-    document.getElementById("timeSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, 200);
-}
-
-// =====================================================
-// โหลดช่วงเวลาว่างของวันที่เลือก
-// =====================================================
-async function loadAvailableSlots(dateStr) {
-  const container = document.getElementById("timeSlots");
-  const noSlotMsg = document.getElementById("noSlotMessage");
-  if (!container) return;
-
-  container.innerHTML = `
-    <div class="col-span-2 text-center py-4 text-gray-400">
-      <svg class="animate-spin w-6 h-6 mx-auto mb-2" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-      </svg>
-      กำลังตรวจสอบช่วงเวลาว่าง...
+      <div class="w-9 h-9 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+        <span class="text-white text-lg">📅</span>
+      </div>
     </div>
-  `;
+  </div>
 
-  // ดึงช่วงเวลาที่ถูกจองแล้ว
-  const bookedSlots = await getBookedSlots(dateStr);
+  <!-- Step Progress -->
+  <div class="px-4 py-3 bg-white border-b border-gray-100 max-w-lg mx-auto">
+    <div class="flex items-center justify-between text-xs text-gray-400 mb-2">
+      <span>เลือกบริการ</span>
+      <span>เลือกวัน</span>
+      <span>เลือกเวลา</span>
+      <span>กรอกข้อมูล</span>
+    </div>
+    <div class="flex gap-1">
+      <div class="h-1.5 flex-1 rounded-full bg-cyan-500"></div>
+      <div class="h-1.5 flex-1 rounded-full bg-gray-200" id="step2bar"></div>
+      <div class="h-1.5 flex-1 rounded-full bg-gray-200" id="step3bar"></div>
+      <div class="h-1.5 flex-1 rounded-full bg-gray-200" id="step4bar"></div>
+    </div>
+  </div>
 
-  container.innerHTML = "";
+  <div class="px-4 py-4 max-w-lg mx-auto space-y-4">
 
-  let morningSlots = [];
-  let afternoonSlots = [];
+    <!-- ===== ขั้นตอนที่ 1: เลือกประเภทบริการ ===== -->
+    <div class="card p-5 fade-in">
+      <div class="section-header">
+        <div class="section-number">1</div>
+        <h2 class="section-title">เลือกประเภทบริการ</h2>
+      </div>
+      <div id="serviceCards" class="space-y-2">
+        <!-- สร้างโดย JS -->
+      </div>
+    </div>
 
-  TIME_SLOTS.forEach((slot) => {
-    const isBooked = bookedSlots.includes(slot.time);
-    if (slot.period === "เช้า") {
-      morningSlots.push({ ...slot, isBooked });
-    } else {
-      afternoonSlots.push({ ...slot, isBooked });
-    }
-  });
+    <!-- ===== ขั้นตอนที่ 2: เลือกวันที่ ===== -->
+    <div id="dateSection" class="card p-5 fade-in" style="animation-delay:0.05s;">
+      <div class="section-header">
+        <div class="section-number">2</div>
+        <h2 class="section-title">เลือกวันที่รับบริการ</h2>
+      </div>
+      <p class="text-xs text-gray-400 mb-3">📌 เปิดให้บริการเฉพาะ <strong class="text-cyan-600">วันอังคาร</strong> เท่านั้น</p>
+      <div id="dateOptions" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+        <!-- สร้างโดย JS -->
+      </div>
+    </div>
 
-  const allBooked =
-    morningSlots.every((s) => s.isBooked) &&
-    afternoonSlots.every((s) => s.isBooked);
+    <!-- ===== ขั้นตอนที่ 3: เลือกช่วงเวลา ===== -->
+    <div id="timeSection" class="card p-5 fade-in" style="animation-delay:0.1s;">
+      <div class="section-header">
+        <div class="section-number">3</div>
+        <h2 class="section-title">เลือกช่วงเวลา</h2>
+      </div>
 
-  if (allBooked) {
-    container.innerHTML = "";
-    if (noSlotMsg) {
-      noSlotMsg.classList.remove("hidden");
-    }
-    return;
-  }
+      <!-- ไม่มีช่วงเวลาว่าง -->
+      <div id="noSlotMessage" class="hidden bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+        <span class="text-2xl">😔</span>
+        <p class="text-red-600 font-medium text-sm mt-2">วันนี้คิวเต็มแล้ว</p>
+        <p class="text-red-400 text-xs mt-1">กรุณาเลือกวันอังคารถัดไป</p>
+      </div>
 
-  if (noSlotMsg) noSlotMsg.classList.add("hidden");
+      <!-- รอเลือกวันที่ -->
+      <div id="selectDateFirst" class="bg-gray-50 rounded-xl p-4 text-center">
+        <p class="text-gray-400 text-sm">กรุณาเลือกวันที่ก่อน</p>
+      </div>
 
-  // แสดงช่วงเช้า
-  const morningHeader = document.createElement("div");
-  morningHeader.className = "col-span-2 text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2";
-  morningHeader.textContent = "☀️ ช่วงเช้า";
-  container.appendChild(morningHeader);
+      <!-- ช่วงเวลา -->
+      <div id="timeSlots" class="hidden">
+        <!-- สร้างโดย JS หลังเลือกวันที่ -->
+      </div>
+    </div>
 
-  morningSlots.forEach((slot) => renderTimeSlotBtn(slot, container));
+    <!-- ===== ขั้นตอนที่ 4: กรอกข้อมูลส่วนตัว ===== -->
+    <div id="formSection" class="card p-5 fade-in" style="animation-delay:0.15s;">
+      <div class="section-header">
+        <div class="section-number">4</div>
+        <h2 class="section-title">กรอกข้อมูลส่วนตัว</h2>
+      </div>
 
-  // แสดงช่วงบ่าย
-  const afternoonHeader = document.createElement("div");
-  afternoonHeader.className = "col-span-2 text-xs font-semibold text-gray-500 uppercase tracking-wide pt-3";
-  afternoonHeader.textContent = "🌤️ ช่วงบ่าย";
-  container.appendChild(afternoonHeader);
-
-  afternoonSlots.forEach((slot) => renderTimeSlotBtn(slot, container));
-}
-
-// =====================================================
-// สร้างปุ่มช่วงเวลา
-// =====================================================
-function renderTimeSlotBtn(slot, container) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.dataset.time = slot.time;
-
-  if (slot.isBooked) {
-    btn.className =
-      "time-slot-btn rounded-xl border-2 border-gray-200 bg-gray-100 py-3 text-sm text-gray-400 cursor-not-allowed";
-    btn.disabled = true;
-    btn.innerHTML = `
-      <div class="font-medium">${slot.time}</div>
-      <div class="text-xs mt-1">เต็มแล้ว</div>
-    `;
-  } else {
-    btn.className =
-      "time-slot-btn rounded-xl border-2 border-cyan-200 bg-white py-3 text-sm text-cyan-700 font-medium cursor-pointer transition-all duration-200 hover:border-cyan-500 hover:bg-cyan-50";
-    btn.innerHTML = `
-      <div class="font-semibold">${slot.time}</div>
-      <div class="text-xs mt-1 text-green-500">ว่าง</div>
-    `;
-    btn.addEventListener("click", () => selectTime(slot.time, btn));
-  }
-
-  container.appendChild(btn);
-}
-
-// =====================================================
-// เลือกช่วงเวลา
-// =====================================================
-function selectTime(timeStr, btnEl) {
-  // ล้างการเลือกเดิม
-  document.querySelectorAll(".time-slot-btn:not(:disabled)").forEach((b) => {
-    b.classList.remove("border-cyan-500", "bg-cyan-100", "selected");
-  });
-
-  // เลือกเวลาใหม่
-  btnEl.classList.add("border-cyan-500", "bg-cyan-100", "selected");
-  bookingState.selectedTime = timeStr;
-
-  // เลื่อนไปส่วนกรอกข้อมูล
-  setTimeout(() => {
-    document.getElementById("formSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, 200);
-}
-
-// =====================================================
-// Validate ข้อมูลฟอร์ม
-// =====================================================
-function validateBookingForm() {
-  const fullName = document.getElementById("fullName")?.value.trim();
-  const age = document.getElementById("age")?.value.trim();
-  const address = document.getElementById("address")?.value.trim();
-  const phone = document.getElementById("phone")?.value.trim();
-  const consent = document.getElementById("consent")?.checked;
-
-  if (!bookingState.selectedService) {
-    showWarning("กรุณาเลือกบริการ", "กรุณาเลือกประเภทบริการที่ต้องการ");
-    return false;
-  }
-
-  if (!bookingState.selectedDate) {
-    showWarning("กรุณาเลือกวันที่", "กรุณาเลือกวันอังคารที่ต้องการรับบริการ");
-    return false;
-  }
-
-  if (!isTuesday(bookingState.selectedDate)) {
-    showError("วันที่ไม่ถูกต้อง", "กรุณาเลือกเฉพาะวันอังคารเท่านั้น");
-    return false;
-  }
-
-  if (bookingState.selectedDate < getTodayISO()) {
-    showError("วันที่ไม่ถูกต้อง", "ไม่สามารถเลือกวันที่ย้อนหลังได้");
-    return false;
-  }
-
-  if (!bookingState.selectedTime) {
-    showWarning("กรุณาเลือกช่วงเวลา", "กรุณาเลือกช่วงเวลาที่ต้องการรับบริการ");
-    return false;
-  }
-
-  if (!fullName) {
-    showWarning("กรุณากรอกชื่อ-สกุล", "");
-    document.getElementById("fullName")?.focus();
-    return false;
-  }
-
-  if (!age || !validateAge(age)) {
-    showWarning("กรุณากรอกอายุให้ถูกต้อง", "อายุต้องอยู่ในช่วง 10-59 ปี");
-    document.getElementById("age")?.focus();
-    return false;
-  }
-
-  if (!address) {
-    showWarning("กรุณากรอกที่อยู่", "");
-    document.getElementById("address")?.focus();
-    return false;
-  }
-
-  if (!phone || !validatePhone(phone)) {
-    showWarning("กรุณากรอกเบอร์ติดต่อให้ถูกต้อง", "เบอร์โทรศัพท์ต้องเป็นตัวเลข 9-10 หลัก");
-    document.getElementById("phone")?.focus();
-    return false;
-  }
-
-  if (!consent) {
-    showWarning(
-      "กรุณายินยอมให้ใช้ข้อมูลเพื่อการนัดหมาย",
-      "กรุณาอ่านและยืนยันการยินยอมก่อนดำเนินการ"
-    );
-    return false;
-  }
-
-  return true;
-}
-
-// =====================================================
-// แสดง Modal ยืนยันก่อนบันทึก
-// =====================================================
-async function showBookingConfirm() {
-  if (!validateBookingForm()) return;
-
-  const fullName = document.getElementById("fullName").value.trim();
-  const age = document.getElementById("age").value.trim();
-  const address = document.getElementById("address").value.trim();
-  const phone = document.getElementById("phone").value.trim();
-  const serviceName = getServiceName(bookingState.selectedService);
-  const dateLabel = formatThaiDate(bookingState.selectedDate);
-
-  const result = await Swal.fire({
-    title: "ยืนยันการจองคิว",
-    html: `
-      <div class="text-left text-sm space-y-2">
-        <div class="bg-cyan-50 rounded-lg p-3 space-y-1">
-          <p><span class="font-semibold">ชื่อ-สกุล:</span> ${fullName}</p>
-          <p><span class="font-semibold">อายุ:</span> ${age} ปี</p>
-          <p><span class="font-semibold">เบอร์:</span> ${phone}</p>
+      <div class="space-y-4">
+        <!-- ชื่อ-สกุล -->
+        <div>
+          <label class="form-label" for="fullName">ชื่อ-สกุล <span class="text-red-400">*</span></label>
+          <input
+            type="text"
+            id="fullName"
+            class="form-input"
+            placeholder="กรอกชื่อและนามสกุล"
+            autocomplete="name"
+          />
         </div>
-        <div class="bg-green-50 rounded-lg p-3 space-y-1">
-          <p><span class="font-semibold">บริการ:</span> ${serviceName}</p>
-          <p><span class="font-semibold">วันที่:</span> ${dateLabel}</p>
-          <p><span class="font-semibold">เวลา:</span> ${bookingState.selectedTime} น.</p>
+
+        <!-- อายุ -->
+        <div>
+          <label class="form-label" for="age">อายุ <span class="text-red-400">*</span></label>
+          <input
+            type="number"
+            id="age"
+            class="form-input"
+            placeholder="10-59 ปี"
+            min="10"
+            max="59"
+            inputmode="numeric"
+          />
+        </div>
+
+        <!-- ที่อยู่ -->
+        <div>
+          <label class="form-label" for="address">ที่อยู่ <span class="text-red-400">*</span></label>
+          <textarea
+            id="address"
+            class="form-input"
+            rows="3"
+            placeholder="บ้านเลขที่ หมู่บ้าน ตำบล อำเภอ จังหวัด"
+          ></textarea>
+        </div>
+
+        <!-- เบอร์ติดต่อ -->
+        <div>
+          <label class="form-label" for="phone">เบอร์ติดต่อ <span class="text-red-400">*</span></label>
+          <input
+            type="tel"
+            id="phone"
+            class="form-input"
+            placeholder="0xxxxxxxxx"
+            maxlength="10"
+            inputmode="tel"
+          />
+        </div>
+
+        <!-- ยินยอมให้ใช้ข้อมูล -->
+        <div class="bg-cyan-50 border border-cyan-200 rounded-xl p-4">
+          <label class="flex gap-3 cursor-pointer">
+            <div class="flex-shrink-0 mt-0.5">
+              <input
+                type="checkbox"
+                id="consent"
+                class="w-5 h-5 rounded text-cyan-500 border-2 border-cyan-300 cursor-pointer"
+              />
+            </div>
+            <p class="text-xs text-gray-600 leading-relaxed">
+              <span class="font-semibold text-cyan-700">ยินยอมการใช้ข้อมูล:</span><br/>
+              ข้าพเจ้ายินยอมให้คลินิกวัยรุ่น โรงพยาบาลนิคมคำสร้อย ใช้ข้อมูลเพื่อการนัดหมายและติดต่อกลับเท่านั้น
+            </p>
+          </label>
         </div>
       </div>
-    `,
-    icon: "question",
-    showCancelButton: true,
-    confirmButtonText: "✅ ยืนยันการจอง",
-    cancelButtonText: "ยกเลิก",
-    confirmButtonColor: "#06b6d4",
-    cancelButtonColor: "#6b7280",
-  });
+    </div>
 
-  if (result.isConfirmed) {
-    await submitBooking(fullName, age, address, phone);
-  }
-}
+    <!-- ===== ปุ่มยืนยันการจอง ===== -->
+    <div class="fade-in" style="animation-delay:0.2s;">
+      <button
+        id="btnConfirmBooking"
+        class="btn-primary py-4 text-base"
+        type="button"
+      >
+        ✅ ยืนยันการจองคิว
+      </button>
+      <p class="text-center text-xs text-gray-400 mt-2">
+        กรุณาตรวจสอบข้อมูลให้ถูกต้องก่อนยืนยัน
+      </p>
+    </div>
 
-// =====================================================
-// บันทึกการจองลง Supabase
-// =====================================================
-async function submitBooking(fullName, age, address, phone) {
-  showLoading("กำลังบันทึกการจอง...");
+  </div><!-- /container -->
 
-  // ตรวจสอบซ้ำอีกครั้งก่อนบันทึก (ป้องกัน race condition)
-  const bookedSlots = await getBookedSlots(bookingState.selectedDate);
-  if (bookedSlots.includes(bookingState.selectedTime)) {
-    hideLoading();
-    showError(
-      "ช่วงเวลานี้ถูกจองแล้ว",
-      "กรุณาเลือกช่วงเวลาอื่น"
-    );
-    await loadAvailableSlots(bookingState.selectedDate);
-    bookingState.selectedTime = null;
-    return;
-  }
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/liff.js"></script>
+  <script>
+    // อัปเดต progress bar เมื่อเลือกแต่ละขั้นตอน
+    const origSelectService = typeof selectService !== 'undefined' ? selectService : null;
 
-  const bookingData = {
-    line_user_id: bookingState.lineUserId,
-    line_display_name: bookingState.lineDisplayName,
-    full_name: fullName,
-    age: parseInt(age),
-    address,
-    phone,
-    service_type: getServiceName(bookingState.selectedService),
-    booking_date: bookingState.selectedDate,
-    booking_time: bookingState.selectedTime,
-    status: "pending",
-  };
+    document.addEventListener('DOMContentLoaded', () => {
+      // แสดง timeSlots section หลังเลือกวันที่
+      const origSelectDate = window.selectDate;
+    });
 
-  const result = await createBooking(bookingData);
+    // Override selectDate เพื่ออัปเดต UI
+    async function selectDate(dateStr, btnEl) {
+      document.getElementById('selectDateFirst')?.classList.add('hidden');
+      document.getElementById('timeSlots')?.classList.remove('hidden');
+      document.getElementById('step2bar')?.classList.replace('bg-gray-200', 'bg-cyan-500');
 
-  if (!result.success) {
-    hideLoading();
-    showError("ไม่สามารถบันทึกข้อมูลได้", result.message || "กรุณาลองใหม่อีกครั้ง");
-    return;
-  }
+      // เรียก logic จาก booking.js (override)
+      document.querySelectorAll('.date-btn').forEach(b =>
+        b.classList.remove('border-cyan-500', 'bg-cyan-50', 'selected')
+      );
+      btnEl.classList.add('border-cyan-500', 'bg-cyan-50', 'selected');
+      bookingState.selectedDate = dateStr;
+      bookingState.selectedTime = null;
+      await loadAvailableSlots(dateStr);
 
-  // ส่งแจ้งเตือน Admin ผ่าน LINE Messaging API
-  await sendLineNotification({
-    type: "booking_created",
-    booking: {
-      full_name: fullName,
-      age: parseInt(age),
-      phone,
-      address,
-      service_type: getServiceName(bookingState.selectedService),
-      booking_date: bookingState.selectedDate,
-      booking_date_thai: formatThaiDate(bookingState.selectedDate),
-      booking_time: bookingState.selectedTime,
-    },
-  });
+      setTimeout(() => {
+        document.getElementById('timeSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 200);
+    }
 
-  hideLoading();
+    function selectTime(timeStr, btnEl) {
+      document.querySelectorAll('.time-slot-btn:not(:disabled)').forEach(b =>
+        b.classList.remove('border-cyan-500', 'bg-cyan-100', 'selected')
+      );
+      btnEl.classList.add('border-cyan-500', 'bg-cyan-100', 'selected');
+      bookingState.selectedTime = timeStr;
+      document.getElementById('step3bar')?.classList.replace('bg-gray-200', 'bg-cyan-500');
+      setTimeout(() => {
+        document.getElementById('formSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 200);
+    }
 
-  // แสดงผลสำเร็จ
-  await Swal.fire({
-    icon: "success",
-    title: "🎉 จองคิวสำเร็จ!",
-    html: `
-      <div class="text-sm space-y-1 text-gray-600">
-        <p>บริการ: <strong>${getServiceName(bookingState.selectedService)}</strong></p>
-        <p>วันที่: <strong>${formatThaiDate(bookingState.selectedDate)}</strong></p>
-        <p>เวลา: <strong>${bookingState.selectedTime} น.</strong></p>
-        <p class="text-xs text-gray-400 mt-3">กรุณามาตามวันและเวลาที่นัดหมาย</p>
-      </div>
-    `,
-    confirmButtonText: "ตกลง",
-    confirmButtonColor: "#06b6d4",
-  });
-
-  // กลับไปหน้าแรก
-  window.location.href = "index.html";
-}
-
-// =====================================================
-// เริ่มต้นเมื่อ DOM พร้อม
-// =====================================================
-document.addEventListener("DOMContentLoaded", () => {
-  initBookingPage();
-
-  // ปุ่มยืนยันการจอง
-  document.getElementById("btnConfirmBooking")?.addEventListener("click", showBookingConfirm);
-});
+    // อัปเดต step4 เมื่อกรอกข้อมูล
+    document.addEventListener('input', (e) => {
+      const step4bar = document.getElementById('step4bar');
+      if (['fullName','age','address','phone'].includes(e.target.id) && step4bar) {
+        step4bar.classList.replace('bg-gray-200', 'bg-cyan-300');
+      }
+    });
+  </script>
+  <script src="js/booking.js"></script>
+</body>
+</html>
