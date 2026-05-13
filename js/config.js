@@ -6,7 +6,7 @@
 
 const CONFIG = {
   // LIFF ID จาก LINE Developers Console
-  LIFF_ID: "YOUR_LIFF_ID",
+  LIFF_ID: "2010079039-FNzhrYce",
 
   // Supabase Project URL จาก Supabase Dashboard > Settings > API
   SUPABASE_URL: "https://pcfodtrfqckvbwrmayzp.supabase.co",
