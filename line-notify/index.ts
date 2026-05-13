@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
-const LINE_TOKEN = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN");
-const ADMIN_ID = Deno.env.get("ADMIN_LINE_ID");
+const LINE_TOKEN = Deno.env.get("49y0dihrSoF9i7A4giCgC9vUVYZZBWJT8l1tJcKyWOXOAgI8faUFvv/Xa6UMSPeguLhQPT4N6CbGmzCdzdHpG6WktXT9skOEM/zulVzozOptl7oviRqTuBLJT0mzCj4a1Fj+hHCuSZVFD60gjKs22QdB04t89/1O/w1cDnyilFU=");
+const ADMIN_ID = Deno.env.get("Ud2bee991b81bf2d7fa473e9ddf924119");
 
 serve(async (req) => {
   const { type, payload } = await req.json();
