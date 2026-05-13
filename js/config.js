@@ -15,7 +15,7 @@ const CONFIG = {
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjZm9kdHJmcWNrdmJ3cm1heXpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NTI2MDUsImV4cCI6MjA5NDIyODYwNX0.vBuZlvY4kApKvT22fes47kPwkCDBhQLgBn7M-pGNFoU",
 
   // URL ของ Supabase Edge Function สำหรับแจ้งเตือน LINE
-  LINE_NOTIFY_FUNCTION_URL: "YOUR_SUPABASE_EDGE_FUNCTION_URL/line-notify",
+  LINE_NOTIFY_FUNCTION_URL: "https://pcfodtrfqckvbwrmayzp.supabase.co/functions/v1/line-notify",
 
   // ชื่อระบบ
   APP_NAME: "Click to Care",
