@@ -3,216 +3,104 @@
 // Logic สำหรับหน้าตรวจสอบ/ยกเลิกคิว (my-booking.html)
 // =====================================================
 
-let currentUser = null;
-let myBookingsList = [];
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0891b2" />
+  <title>ตรวจสอบคิวของฉัน - Click to Care</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 min-h-screen pb-20">
 
-// =====================================================
-// เริ่มต้นหน้า My Booking
-// =====================================================
-async function initMyBookingPage() {
-  showLoading("กำลังโหลดข้อมูล...");
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="hidden">
+    <div class="spinner"></div>
+    <p id="loadingMessage" class="text-cyan-600 font-medium text-sm">กำลังโหลด...</p>
+  </div>
 
-  // เริ่มต้น LIFF
-  const user = await initLiff();
-  if (!user) {
-    hideLoading();
-    return;
-  }
-
-  currentUser = user;
-
-  // แสดงชื่อผู้ใช้
-  const userNameEl = document.getElementById("userName");
-  if (userNameEl) userNameEl.textContent = user.displayName;
-
-  // โหลดรายการจอง
-  await loadMyBookings();
-
-  hideLoading();
-}
-
-// =====================================================
-// โหลดรายการจองของฉัน
-// =====================================================
-async function loadMyBookings() {
-  const container = document.getElementById("bookingList");
-  const emptyState = document.getElementById("emptyState");
-
-  if (!container) return;
-
-  showLoading("กำลังโหลดรายการจอง...");
-
-  const result = await getMyBookings(currentUser.userId);
-
-  hideLoading();
-
-  if (!result.success) {
-    showError("เกิดข้อผิดพลาด", "ไม่สามารถโหลดรายการได้ กรุณาลองใหม่");
-    return;
-  }
-
-  myBookingsList = result.data || [];
-
-  if (myBookingsList.length === 0) {
-    container.innerHTML = "";
-    if (emptyState) emptyState.classList.remove("hidden");
-    return;
-  }
-
-  if (emptyState) emptyState.classList.add("hidden");
-
-  // แสดงรายการจอง
-  container.innerHTML = "";
-  myBookingsList.forEach((booking) => {
-    container.appendChild(renderBookingCard(booking));
-  });
-}
-
-// =====================================================
-// สร้าง Card แสดงข้อมูลการจอง
-// =====================================================
-function renderBookingCard(booking) {
-  const card = document.createElement("div");
-  card.className = "booking-card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden";
-  card.dataset.bookingId = booking.id;
-
-  const statusInfo = STATUS_LABELS[booking.status] || STATUS_LABELS["pending"];
-  const dateLabel = formatThaiDate(booking.booking_date);
-  const createdLabel = formatThaiDateTime(booking.created_at);
-
-  card.innerHTML = `
-    <!-- Header -->
-    <div class="bg-gradient-to-r from-cyan-500 to-teal-500 px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <span class="text-2xl">${getServiceIcon(booking.service_type) || "🏥"}</span>
-        <div>
-          <p class="text-white font-semibold text-sm leading-tight">${booking.service_type}</p>
-          <p class="text-cyan-100 text-xs">จองเมื่อ ${createdLabel}</p>
-        </div>
+  <!-- Top Navigation -->
+  <div class="hero-gradient px-4 pt-6 pb-10">
+    <div class="flex items-center gap-3 max-w-lg mx-auto">
+      <button
+        onclick="window.location.href='index.html'"
+        type="button"
+        class="w-9 h-9 bg-white bg-opacity-20 rounded-xl flex items-center justify-center flex-shrink-0"
+      >
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-white font-bold text-lg">คิวของฉัน</h1>
+        <p class="text-cyan-100 text-xs" id="userName">กำลังโหลด...</p>
       </div>
-      <span class="px-2 py-1 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.color}">
-        ${statusInfo.label}
-      </span>
+      <button
+        id="btnRefresh"
+        class="w-9 h-9 bg-white bg-opacity-20 rounded-xl flex items-center justify-center"
+        title="รีเฟรช"
+      >
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="px-4 -mt-4 max-w-lg mx-auto space-y-3 pb-6">
+
+    <!-- Info Banner -->
+    <div class="bg-cyan-50 border border-cyan-200 rounded-2xl p-3 flex items-start gap-3 fade-in">
+      <span class="text-xl flex-shrink-0">ℹ️</span>
+      <p class="text-xs text-cyan-700 leading-relaxed">
+        แสดงเฉพาะรายการที่ <strong>รอรับบริการ</strong> ของคุณ สามารถกดยกเลิกได้ก่อนวันนัดหมาย
+      </p>
     </div>
 
-    <!-- Body -->
-    <div class="p-4 space-y-3">
-      <div class="grid grid-cols-2 gap-3">
-        <div class="bg-gray-50 rounded-xl p-3">
-          <p class="text-xs text-gray-400 mb-1">📅 วันที่นัด</p>
-          <p class="text-sm font-semibold text-gray-700 leading-snug">${dateLabel}</p>
-        </div>
-        <div class="bg-gray-50 rounded-xl p-3">
-          <p class="text-xs text-gray-400 mb-1">⏰ เวลา</p>
-          <p class="text-sm font-semibold text-gray-700">${booking.booking_time} น.</p>
-        </div>
-      </div>
-
-      <div class="bg-gray-50 rounded-xl p-3 space-y-1">
-        <div class="flex gap-2 text-sm">
-          <span class="text-gray-400">👤</span>
-          <span class="text-gray-700">${booking.full_name}</span>
-        </div>
-        <div class="flex gap-2 text-sm">
-          <span class="text-gray-400">📞</span>
-          <span class="text-gray-700">${booking.phone}</span>
-        </div>
-      </div>
-
-      ${
-        booking.status === "pending"
-          ? `
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden">
+      <div class="card p-10 text-center fade-in">
+        <div class="text-6xl mb-4">📋</div>
+        <h3 class="font-semibold text-gray-600 mb-2">ไม่พบรายการจองของคุณ</h3>
+        <p class="text-sm text-gray-400 mb-5">คุณยังไม่มีคิวที่รอรับบริการ</p>
         <button
-          onclick="confirmCancelBooking('${booking.id}')"
-          class="w-full py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 font-semibold text-sm transition-all duration-200 hover:bg-red-100 active:scale-95"
+          onclick="window.location.href='booking.html'"
+          type="button"
+          class="btn-primary"
         >
-          🗑️ ยกเลิกการจองนี้
+          📅 จองคิวใหม่
         </button>
-      `
-          : booking.cancel_reason
-          ? `
-        <div class="bg-red-50 rounded-xl p-3">
-          <p class="text-xs text-red-400">เหตุผลการยกเลิก</p>
-          <p class="text-sm text-red-600 mt-1">${booking.cancel_reason}</p>
-        </div>
-      `
-          : ""
-      }
+      </div>
     </div>
-  `;
 
-  return card;
-}
+    <!-- Booking List -->
+    <div id="bookingList" class="space-y-3">
+      <!-- สร้างโดย JS -->
+    </div>
 
-// =====================================================
-// ยืนยันการยกเลิกคิว
-// =====================================================
-async function confirmCancelBooking(bookingId) {
-  // ขอเหตุผลการยกเลิก
-  const { value: cancelReason, isConfirmed } = await Swal.fire({
-    title: "🗑️ ยกเลิกการจอง",
-    html: `
-      <p class="text-sm text-gray-600 mb-3">กรุณาระบุเหตุผลการยกเลิก (ไม่บังคับ)</p>
-      <textarea
-        id="cancelReasonInput"
-        class="swal2-textarea w-full"
-        placeholder="เช่น ติดธุระ ไม่สะดวก หรือเหตุอื่นๆ"
-        rows="3"
-        style="font-family: 'Mitr', sans-serif; font-size: 14px;"
-      ></textarea>
-    `,
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonText: "ยืนยันยกเลิก",
-    cancelButtonText: "ไม่ยกเลิก",
-    confirmButtonColor: "#ef4444",
-    cancelButtonColor: "#6b7280",
-    preConfirm: () => {
-      return document.getElementById("cancelReasonInput").value.trim() || "ไม่ระบุ";
-    },
-  });
+    <!-- ปุ่มจองคิวใหม่ -->
+    <div class="mt-4">
+      <button
+        onclick="window.location.href='booking.html'"
+        type="button"
+        class="btn-outline"
+      >
+        ➕ จองคิวใหม่
+      </button>
+    </div>
 
-  if (!isConfirmed) return;
+  </div>
 
-  // ดำเนินการยกเลิก
-  showLoading("กำลังยกเลิกการจอง...");
-
-  const booking = myBookingsList.find((b) => b.id === bookingId);
-  const result = await cancelBooking(bookingId, currentUser.userId, cancelReason);
-
-  if (!result.success) {
-    hideLoading();
-    showError("ไม่สามารถยกเลิกได้", result.message || "กรุณาลองใหม่อีกครั้ง");
-    return;
-  }
-
-  // ส่งแจ้งเตือน Admin ผ่าน LINE Messaging API
-  await sendLineNotification({
-    type: "booking_cancelled",
-    booking: {
-      full_name: result.booking.full_name,
-      service_type: result.booking.service_type,
-      booking_date: result.booking.booking_date,
-      booking_date_thai: formatThaiDate(result.booking.booking_date),
-      booking_time: result.booking.booking_time,
-      cancel_reason: cancelReason,
-    },
-  });
-
-  hideLoading();
-
-  await showSuccess("ยกเลิกคิวสำเร็จ", "ช่วงเวลาดังกล่าวจะถูกเปิดให้จองได้อีกครั้ง");
-
-  // โหลดรายการใหม่
-  await loadMyBookings();
-}
-
-// =====================================================
-// เริ่มต้นเมื่อ DOM พร้อม
-// =====================================================
-document.addEventListener("DOMContentLoaded", () => {
-  initMyBookingPage();
-
-  // ปุ่มรีเฟรช
-  document.getElementById("btnRefresh")?.addEventListener("click", loadMyBookings);
-});
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/liff.js"></script>
+  <script src="js/my-booking.js"></script>
+</body>
+</html>
